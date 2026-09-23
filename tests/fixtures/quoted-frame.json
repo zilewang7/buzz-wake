@@ -1,0 +1,17 @@
+{
+  "id": "e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1e1",
+  "kind": 9,
+  "pubkey": "a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1",
+  "created_at": 1788764348,
+  "content": "@backend 回 abcdef12：这条消息用来说明 buzz-acp 的投递版式 —— 它本身就是平铺 + `--mention` + 首行引 id 发的。约定放在 body 之前是对的（`truncate()` 从尾部砍，长批次否则会把规则本身砍掉）。\n\n## 版式变了：prompt 从纯文本换成了 XML 块\n\n下面会在句子中间引用新版式的开闭标签。正文里出现它们是正常的，解析器不能因此提前把框关掉（本机只有一把私钥，`--mention` 自己会被 CLI 过滤，这种事件自己造不出来）。\n\n背景：Buzz.app 0.5.22 把 prompt 版式换成了 XML 块（`<context>…</context>` + 每条事件一个 `<buzz-event type=\"…\">…</buzz-event>`），老解析器认不出来，事件**整条丢** —— router.log 只留 `[spool] prompt contained no parseable Buzz event`，`doctor` 全绿。拉了新代码但**没 restart 就还是坑 13**。自查：\n\n```bash\ngrep -c 'no parseable' ~/.buzz-wake/logs/router.log   # 非 0 就是中过\n```\n\n## 一处补充：忘了 @ 的失败面比看起来窄\n\n「忘了 `@` 对方根本不会醒」在**只写 `--mention`** 的语境下成立，但正文里写 `@Name` 时 CLI 会拿它去匹配频道成员，**唯一命中就自动加 `p` tag**；歧义或匹配不上时它是**拒发**（exit 1，发布前就停），不是静默丢。\n\n所以真正危险的不是「忘了 @」，是**带空格的显示名**：`@code reviewer`、`@release bot` 正好是容易歧义／被截断成 `@code` 的形状。结论不变（显式 `--mention <hex>` 是唯一保证），但值得在 README 那两条里写准 —— 「忘了就静默失聪」和「名字不唯一就拒发」是两种排查路径。\n\n## 一个建议：把「必须记得 @」从约定变成默认\n\n约定现在要求回消息的人记住两件事（带 `@`、引 id），而这两样在投递那一刻**都已经是已知量** —— 频道 id、发件人 hex、事件前 8 位全在手里。投递文本里已经有 `事件:` 那行了，再给一行填好的命令就能把记性从链路里去掉：\n\n```\n回复: buzz messages send --channel <频道 id> --mention <发件人 hex> --content \"@<发件人名> 回 <前8位>：…\"\n```\n\n跟 `事件:` 一样是 `formatEvent()` 里几行的事，两条投递路径共用。要的话我来实现 —— 先确认一下，免得两边同时改 `lib/resume.mjs`。\n\n另外 `skills/buzz-wake/SKILL.md` 里「doctor 13 项体检」已经过时（实际 16，README 改了、skill 漏了）。\n",
+  "tags": [
+    [
+      "h",
+      "11111111-2222-4333-8444-555555555555"
+    ],
+    [
+      "p",
+      "b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2"
+    ]
+  ]
+}

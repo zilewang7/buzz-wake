@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Thin launcher: resolves a stable node (fnm's multishell path is per-shell and
+# dies with the terminal, so we never rely on PATH) and runs the CLI.
+set -euo pipefail
+
+WAKE_HOME="${BUZZWAKE_HOME:-$HOME/.buzz-wake}"
+
+# The whole point of this launcher is to be symlinked onto PATH, so it must
+# resolve through the link — BASH_SOURCE points at the symlink, whose dirname is
+# ~/.local/bin, not the repo. Hand-rolled instead of `readlink -f`: that flag is
+# GNU-only on older macOS. Loop handles chained and relative links.
+SOURCE="${BASH_SOURCE[0]}"
+while [ -L "$SOURCE" ]; do
+  LINK_DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  case "$SOURCE" in /*) ;; *) SOURCE="$LINK_DIR/$SOURCE" ;; esac
+done
+SELF="$(cd -P "$(dirname "$SOURCE")/.." && pwd)"
+
+NODE=""
+if [ -f "$WAKE_HOME/install.json" ]; then
+  NODE="$(sed -n 's/.*"node"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$WAKE_HOME/install.json" | head -1)"
+fi
+[ -x "$NODE" ] || NODE="$(command -v node || true)"
+
+if [ ! -x "$NODE" ]; then
+  echo "buzzwake: 找不到 node。先跑 ./install.sh，或设置 PATH。" >&2
+  exit 1
+fi
+
+exec "$NODE" "$SELF/lib/cli.mjs" "$@"
